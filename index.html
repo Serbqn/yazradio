@@ -66,7 +66,7 @@
     width:min(52vw, 300px);
     aspect-ratio:1/1;
     margin: 8px auto 20px;
-    pointer-events:auto; /* main is pointer-events:none — the sun opts back in */
+    pointer-events:auto;
   }
   .sun-glow{
     position:absolute; inset:-30%; border-radius:50%;
@@ -82,13 +82,6 @@
     position:absolute; inset:8%; border-radius:50%;
     background:linear-gradient(180deg, var(--gold-bright), var(--gold) 60%, var(--dusk-warm));
     box-shadow: 0 0 60px rgba(217,184,120,0.35);
-  }
-  .sun-ticks{position:absolute; inset:0;}
-  .sun-ticks div{
-    position:absolute; left:50%; top:50%;
-    width:2px; height:10px;
-    background:rgba(22,16,41,0.35);
-    transform-origin:50% 50vw; /* overridden inline per tick */
   }
   .tune-btn{
     position:absolute; inset:0; border:none; background:transparent; cursor:pointer;
@@ -142,9 +135,9 @@
   main{
     flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
     text-align:center; padding:clamp(28px,6vh,64px) 20px 0;
-    pointer-events:none; /* let clicks fall through empty text-box space to the sun button below */
+    pointer-events:none;
   }
-  main .lcd{ pointer-events:auto; } /* ...but the LCD panel (volume slider) still needs clicks */
+  main .lcd{ pointer-events:auto; }
   .eyebrow{
     font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.22em;
     text-transform:uppercase; color:var(--gold); opacity:0.85; margin:0 0 14px;
@@ -176,15 +169,21 @@
   .now-playing{
     font-family:'Fraunces',serif; font-weight:500; font-size:19px;
     color:var(--cream); margin:10px 0 2px; min-height:26px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .artist{
     font-family:'Inter',sans-serif; font-size:13px; color:var(--cream); opacity:0.55;
     min-height:18px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .progress{
     margin-top:14px; height:3px; border-radius:2px; background:var(--ui-line); overflow:hidden;
   }
-  .progress-bar{height:100%; width:0%; background:var(--gold); transition:width 0.3s linear;}
+  .progress-bar{height:100%; width:0%; background:var(--gold); transition:width 0.4s ease;}
 
   .controls{
     display:flex; align-items:center; justify-content:space-between; margin-top:16px;
@@ -256,15 +255,20 @@
         <span class="freq" id="clock">--:--</span>
         <span class="freq" id="stationTag">CANLI</span>
       </div>
-      <p class="now-playing" id="trackTitle">Yayın hazırlanıyor…</p>
+      <p class="now-playing" id="trackTitle">Yayın yükleniyor…</p>
       <p class="artist" id="trackArtist">&nbsp;</p>
+      
+      <div class="progress">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
       <div class="controls">
         <div class="vol-row">
           <label for="vol">SES</label>
           <input type="range" id="vol" min="0" max="100" value="70">
         </div>
       </div>
-      <p class="status-msg" id="statusMsg">Başlatmak için güneşe dokun.</p>
+      <p class="status-msg" id="statusMsg">Oynatıcı hazırlanıyor...</p>
     </div>
   </main>
 
@@ -273,104 +277,106 @@
   </footer>
 </div>
 
-<audio id="player" preload="none"></audio>
+<!-- Arka Planda Görünmez SoundCloud Widget'ı (Local & CORS Korumalı) -->
+<iframe id="sc-player" style="position:absolute; top:-9999px; width:1px; height:1px; opacity:0;" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/playlists/1472559310&auto_play=false&show_artwork=false" scrolling="no" frameborder="no" allow="autoplay"></iframe>
+
+<!-- SoundCloud Widget API -->
+<script src="https://w.soundcloud.com/player/api.js"></script>
 
 <script>
 /* ============================================================
-   YAZ DAĞLARI RADYO — canlı yayın ayarları
-
-   Burada dosya yok, indirme yok — gerçek bir internet radyosunun
-   canlı akışına bağlanıyoruz. Bu yüzden STATION.streamUrl alanına
-   koyduğun istasyonun bu şekilde kullanılmasına GERÇEKTEN izin
-   verdiğinden emin ol:
-
-   - Birçok internet radyosu (SomaFM gibi) yayınını yalnızca
-     kişisel dinleme için sunar ve yazılı izin olmadan başka bir
-     sitede kullanılmasını (embed) YASAKLAR.
-   - Zeno.fm gibi platformlarda barınan bağımsız istasyonlar
-     genelde kendi web sitelerine gömmek için widget/URL sağlar —
-     ama bu widget'ın SANA (başka bir site sahibine) da açık
-     olduğu garanti değil. En temiz yol: istasyona kısaca yaz,
-     "Yaz Dağları" adlı bir kokteyl barın web sitesinde akışınızı
-     kullanmak istiyoruz, uygun mu?" diye sor. Çoğu bağımsız/
-     hobi istasyonu bunu memnuniyetle onaylar.
-   - Kendi istasyonunu Zeno.fm / Radio.co gibi bir platformda
-     ücretsiz plan ile açıp kendi AutoDJ listenle yayın yapmak da
-     bir seçenek — o zaman yayının tamamen senin.
-
-   Aşağıdaki URL yalnızca YER TUTUCUDUR. Kendi onayladığın
-   istasyonun doğrudan stream URL'siyle değiştir.
+   YAZ DAĞLARI RADYO — SoundCloud Kurşun Geçirmez Sürüm
    ============================================================ */
-const STATION = {
-  name: "Yaz Dağları Radyo",
-  // Test amaçlı dolduruldu (Chilltrax, MP3 128Kbps) — STREAMING.md'deki izin
-  // adımını tamamlamadan yayına açık bir sitede kalıcı olarak kullanma.
-  streamUrl: "http://streams.electronicmusicradiogroup.org:9000",
-};
 
-const player = document.getElementById('player');
 const sunWrap = document.getElementById('sunWrap');
 const playBtn = document.getElementById('playBtn');
 const trackTitle = document.getElementById('trackTitle');
 const trackArtist = document.getElementById('trackArtist');
-const stationTag = document.getElementById('stationTag');
 const statusMsg = document.getElementById('statusMsg');
 const clock = document.getElementById('clock');
 const vol = document.getElementById('vol');
+const progressBar = document.getElementById('progressBar');
+
+const iframe = document.getElementById('sc-player');
+const widget = SC.Widget(iframe);
 
 let isPlaying = false;
 
-trackTitle.textContent = STATION.name;
-trackArtist.textContent = "yaz akşamı yayını";
+// 1. Oynatıcı Hazır Olduğunda
+widget.bind(SC.Widget.Events.READY, () => {
+  statusMsg.textContent = "Başlatmak için güneşe dokun.";
+  setVolume(vol.value);
+  
+  // İlk parçanın bilgisini çek
+  updateTrackInfo();
+});
 
+// 2. Play / Pause Tetikleyicisi
 function togglePlay() {
-  if (!STATION.streamUrl) {
-    statusMsg.textContent = "Henüz bir yayın adresi tanımlanmadı — STATION.streamUrl'ü doldurun.";
-    return;
-  }
-
   if (!isPlaying) {
-    if (!player.src) {
-      player.src = STATION.streamUrl;
-    }
-    statusMsg.textContent = "Bağlanıyor…";
-    player.play().then(() => {
-      isPlaying = true;
-      sunWrap.classList.add('playing');
-      document.body.classList.add('is-playing');
-      statusMsg.textContent = "Yayında.";
-    }).catch(() => {
-      statusMsg.textContent = "Bağlantı kurulamadı — yayın adresini kontrol edin.";
-    });
+    statusMsg.textContent = "Yayına bağlanılıyor…";
+    widget.play();
   } else {
-    isPlaying = false;
-    sunWrap.classList.remove('playing');
-    document.body.classList.remove('is-playing');
-    player.pause();
-    statusMsg.textContent = "Duraklatıldı.";
+    widget.pause();
   }
 }
 
-playBtn.addEventListener('click', togglePlay);
+// 3. SoundCloud Durum Takipleri
+widget.bind(SC.Widget.Events.PLAY, () => {
+  isPlaying = true;
+  sunWrap.classList.add('playing');
+  document.body.classList.add('is-playing');
+  statusMsg.textContent = "Yayında.";
+  updateTrackInfo();
+});
 
-player.addEventListener('waiting', () => {
-  if (isPlaying) statusMsg.textContent = "Arabelleğe alınıyor…";
-});
-player.addEventListener('playing', () => {
-  if (isPlaying) statusMsg.textContent = "Yayında.";
-});
-player.addEventListener('error', () => {
+widget.bind(SC.Widget.Events.PAUSE, () => {
   isPlaying = false;
   sunWrap.classList.remove('playing');
   document.body.classList.remove('is-playing');
-  statusMsg.textContent = "Bağlantı koptu — tekrar denemek için güneşe dokunun.";
+  statusMsg.textContent = "Duraklatıldı.";
 });
+
+// Şarkı değiştikçe arayüz metinlerini güncelle
+widget.bind(SC.Widget.Events.PLAY_PROGRESS, (data) => {
+  if (isPlaying) {
+    const percentage = data.relativePosition * 100;
+    progressBar.style.width = `${percentage}%`;
+  }
+});
+
+function updateTrackInfo() {
+  widget.getCurrentSound((sound) => {
+    if (sound) {
+      // Şarkı adı ve sanatçıyı parçala veya ata
+      let title = sound.title || "Yaz Chillhop Seçkisi";
+      let artist = sound.user ? sound.user.username : "Yaz Dağları";
+      
+      if (title.includes('-')) {
+        const parts = title.split('-');
+        artist = parts[0].trim();
+        title = parts[1].trim();
+      }
+      
+      trackTitle.textContent = title;
+      trackArtist.textContent = artist;
+    }
+  });
+}
+
+// Ses Kontrolü (SoundCloud 0-1 arası çalışır)
+function setVolume(value) {
+  const fraction = value / 100;
+  widget.setVolume(fraction);
+}
 
 vol.addEventListener('input', () => {
-  player.volume = vol.value / 100;
+  setVolume(vol.value);
 });
-player.volume = vol.value / 100;
 
+playBtn.addEventListener('click', togglePlay);
+
+// Sağ üst saat
 function updateClock() {
   const now = new Date();
   clock.textContent = String(now.getHours()).padStart(2,'0') + ":" + String(now.getMinutes()).padStart(2,'0');
