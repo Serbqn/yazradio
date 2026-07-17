@@ -249,11 +249,10 @@
     <div class="lcd">
       <div class="lcd-row">
         <span class="freq" id="clock">--:--</span>
-        <span class="freq" id="trackIndex">01 / 01</span>
+        <span class="freq" id="stationTag">CANLI</span>
       </div>
       <p class="now-playing" id="trackTitle">Yayın hazırlanıyor…</p>
       <p class="artist" id="trackArtist">&nbsp;</p>
-      <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
       <div class="controls">
         <div class="vol-row">
           <label for="vol">SES</label>
@@ -265,7 +264,7 @@
   </main>
 
   <footer>
-    Afiyet olsun · <a href="https://yazdaglari.vercel.app">yazdaglari.vercel.app</a> · 2026 © Yaz Dağları
+    Afiyet olsun · <a href="https://yazdaglari.vercel.app">yazdaglari//radio</a> · 2026 © Yaz Dağları
   </footer>
 </div>
 
@@ -273,113 +272,68 @@
 
 <script>
 /* ============================================================
-   YAZ DAĞLARI RADYO — playlist config
-   Her ziyaretçi aynı anda aynı şarkının aynı yerini duyar
-   (gerçek bir yayın sunucusu olmadan, "senkronize" çalma).
+   YAZ DAĞLARI RADYO — canlı yayın ayarları
 
-   Yeni parça eklemek için:
-   1) pixabay.com/music üzerinden (ticari kullanım için ücretsiz)
-      "lounge", "chill", "tropical house", "bossa nova" gibi
-      aramalarla yaz akşamı havasında parçalar indir.
-   2) MP3 dosyasını /tracks klasörüne koy.
-   3) Aşağıdaki listeye title/artist/src bilgisiyle bir satır ekle.
-   4) duration alanını saniye cinsinden gerçek uzunlukla güncelle
-      (senkron oynatma bunu kullanır — tracks/README.md'e bakın).
+   Burada dosya yok, indirme yok — gerçek bir internet radyosunun
+   canlı akışına bağlanıyoruz. Bu yüzden STATION.streamUrl alanına
+   koyduğun istasyonun bu şekilde kullanılmasına GERÇEKTEN izin
+   verdiğinden emin ol:
+
+   - Birçok internet radyosu (SomaFM gibi) yayınını yalnızca
+     kişisel dinleme için sunar ve yazılı izin olmadan başka bir
+     sitede kullanılmasını (embed) YASAKLAR.
+   - Zeno.fm gibi platformlarda barınan bağımsız istasyonlar
+     genelde kendi web sitelerine gömmek için widget/URL sağlar —
+     ama bu widget'ın SANA (başka bir site sahibine) da açık
+     olduğu garanti değil. En temiz yol: istasyona kısaca yaz,
+     "Yaz Dağları" adlı bir kokteyl barın web sitesinde akışınızı
+     kullanmak istiyoruz, uygun mu?" diye sor. Çoğu bağımsız/
+     hobi istasyonu bunu memnuniyetle onaylar.
+   - Kendi istasyonunu Zeno.fm / Radio.co gibi bir platformda
+     ücretsiz plan ile açıp kendi AutoDJ listenle yayın yapmak da
+     bir seçenek — o zaman yayının tamamen senin.
+
+   Aşağıdaki URL yalnızca YER TUTUCUDUR. Kendi onayladığın
+   istasyonun doğrudan stream URL'siyle değiştir.
    ============================================================ */
-const PLAYLIST = [
-  { title: "Altın Saat",     artist: "Yaz Dağları Radyo", src: "tracks/01-altin-saat.mp3",     duration: 180 },
-  { title: "Deniz Esintisi", artist: "Yaz Dağları Radyo", src: "tracks/02-deniz-esintisi.mp3", duration: 180 },
-  { title: "Gün Batımı",     artist: "Yaz Dağları Radyo", src: "tracks/03-gun-batimi.mp3",     duration: 180 },
-];
-
-// Sabit bir başlangıç noktası: tüm ziyaretçiler için ortak "yayın saati".
-const EPOCH = new Date("2026-01-01T00:00:00Z").getTime();
+const STATION = {
+  name: "Yaz Dağları Radyo",
+  streamUrl: "", // buraya onayladığın istasyonun doğrudan stream URL'sini yapıştır
+};
 
 const player = document.getElementById('player');
 const sunWrap = document.getElementById('sunWrap');
 const playBtn = document.getElementById('playBtn');
 const trackTitle = document.getElementById('trackTitle');
 const trackArtist = document.getElementById('trackArtist');
-const trackIndex = document.getElementById('trackIndex');
-const progressBar = document.getElementById('progressBar');
+const stationTag = document.getElementById('stationTag');
 const statusMsg = document.getElementById('statusMsg');
 const clock = document.getElementById('clock');
 const vol = document.getElementById('vol');
 
-let totalDuration = PLAYLIST.reduce((sum, t) => sum + t.duration, 0);
 let isPlaying = false;
-let currentIdx = -1;
-let progressTimer = null;
 
-function getBroadcastPosition() {
-  const elapsed = (Date.now() - EPOCH) / 1000;
-  return ((elapsed % totalDuration) + totalDuration) % totalDuration;
-}
-
-function findCurrentTrack() {
-  let pos = getBroadcastPosition();
-  for (let i = 0; i < PLAYLIST.length; i++) {
-    if (pos < PLAYLIST[i].duration) {
-      return { index: i, offset: pos };
-    }
-    pos -= PLAYLIST[i].duration;
-  }
-  return { index: 0, offset: 0 };
-}
-
-function loadCurrentTrack(autoplay) {
-  const { index, offset } = findCurrentTrack();
-  currentIdx = index;
-  const track = PLAYLIST[index];
-
-  trackTitle.textContent = track.title;
-  trackArtist.textContent = track.artist;
-  trackIndex.textContent = String(index + 1).padStart(2, '0') + " / " + String(PLAYLIST.length).padStart(2, '0');
-
-  player.src = track.src;
-  player.currentTime = 0;
-  statusMsg.textContent = "Yükleniyor…";
-
-  const trySeek = () => {
-    try { player.currentTime = Math.min(offset, track.duration - 0.5); } catch (e) {}
-  };
-
-  player.addEventListener('loadedmetadata', trySeek, { once: true });
-
-  if (autoplay) {
-    player.play().then(() => {
-      statusMsg.textContent = "Yayında.";
-    }).catch(() => {
-      statusMsg.textContent = "Parça bulunamadı — /tracks klasörüne MP3 ekleyin.";
-      advanceAfterDelay();
-    });
-  } else {
-    statusMsg.textContent = "Başlatmak için güneşe dokun.";
-  }
-}
-
-function advanceAfterDelay() {
-  setTimeout(() => {
-    if (isPlaying) loadCurrentTrack(true);
-  }, 2500);
-}
-
-player.addEventListener('error', () => {
-  if (isPlaying) {
-    statusMsg.textContent = "Parça bulunamadı — /tracks klasörüne MP3 ekleyin.";
-    advanceAfterDelay();
-  }
-});
-
-player.addEventListener('ended', () => {
-  if (isPlaying) loadCurrentTrack(true);
-});
+trackTitle.textContent = STATION.name;
+trackArtist.textContent = "yaz akşamı yayını";
 
 function togglePlay() {
+  if (!STATION.streamUrl) {
+    statusMsg.textContent = "Henüz bir yayın adresi tanımlanmadı — STATION.streamUrl'ü doldurun.";
+    return;
+  }
+
   if (!isPlaying) {
-    isPlaying = true;
-    sunWrap.classList.add('playing');
-    loadCurrentTrack(true);
+    if (!player.src) {
+      player.src = STATION.streamUrl;
+    }
+    statusMsg.textContent = "Bağlanıyor…";
+    player.play().then(() => {
+      isPlaying = true;
+      sunWrap.classList.add('playing');
+      statusMsg.textContent = "Yayında.";
+    }).catch(() => {
+      statusMsg.textContent = "Bağlantı kurulamadı — yayın adresini kontrol edin.";
+    });
   } else {
     isPlaying = false;
     sunWrap.classList.remove('playing');
@@ -390,32 +344,29 @@ function togglePlay() {
 
 playBtn.addEventListener('click', togglePlay);
 
+player.addEventListener('waiting', () => {
+  if (isPlaying) statusMsg.textContent = "Arabelleğe alınıyor…";
+});
+player.addEventListener('playing', () => {
+  if (isPlaying) statusMsg.textContent = "Yayında.";
+});
+player.addEventListener('error', () => {
+  isPlaying = false;
+  sunWrap.classList.remove('playing');
+  statusMsg.textContent = "Bağlantı koptu — tekrar denemek için güneşe dokunun.";
+});
+
 vol.addEventListener('input', () => {
   player.volume = vol.value / 100;
 });
 player.volume = vol.value / 100;
 
-function updateProgress() {
-  if (currentIdx >= 0 && PLAYLIST[currentIdx]) {
-    const track = PLAYLIST[currentIdx];
-    const pct = Math.min(100, (player.currentTime / track.duration) * 100);
-    progressBar.style.width = pct + "%";
-
-    // Eğer gerçek çalma pozisyonu, hesaplanan yayın pozisyonundan
-    // önemli ölçüde saparsa (arabelleğe alma/gecikme), senkronu düzelt.
-    const { index, offset } = findCurrentTrack();
-    if (index !== currentIdx || Math.abs(player.currentTime - offset) > 4) {
-      if (isPlaying) loadCurrentTrack(true);
-    }
-  }
+function updateClock() {
   const now = new Date();
   clock.textContent = String(now.getHours()).padStart(2,'0') + ":" + String(now.getMinutes()).padStart(2,'0');
 }
-setInterval(updateProgress, 1000);
-updateProgress();
-
-// İlk yükte, oynatmadan, hangi parçanın "şu an" çaldığını göster.
-loadCurrentTrack(false);
+setInterval(updateClock, 1000);
+updateClock();
 </script>
 </body>
 </html>
