@@ -125,9 +125,14 @@ const statusMsg = document.getElementById('statusMsg');
 const clock = document.getElementById('clock');
 const progressBar = document.getElementById('progressBar');
 
-// Vercel üzerinde en kararlı çalışan yüksek kaliteli HTTPS stream kaynağı (SomaFM Lofi Lounge)
-const streamUrl = "https://ice2.somafm.com/lofi-128-mp3";
-let audio = new Audio(streamUrl);
+// Doğrudan .mp3 uzantılı, tarayıcı uyumlu ve güvenli SomaFM Lofi stream adresi
+const streamUrl = "https://ice1.somafm.com/lofi-128-mp3";
+let audio = new Audio();
+
+// Tarayıcıya gelen akışın mpeg/mp3 olduğunu açıkça beyan ediyoruz
+audio.src = streamUrl;
+audio.type = "audio/mpeg";
+audio.preload = "none";
 
 let isPlaying = false;
 let progressInterval;
@@ -136,6 +141,8 @@ let width = 0;
 function togglePlay() {
   if (!isPlaying) {
     statusMsg.textContent = "Canlı yayına bağlanılıyor…";
+    
+    // Her başlatmada güncel canlı akışı yakalamak için yeniden yükle
     audio.load();
     
     audio.play()
@@ -157,7 +164,8 @@ function togglePlay() {
   } else {
     isPlaying = false;
     audio.pause();
-    audio.src = streamUrl; // Buffer temizliği ve canlı yayını yakalamak için reset
+    // Buffer birikmesini önlemek için kaynağı sıfırlayıp tekrar bağlıyoruz
+    audio.src = streamUrl;
     sunWrap.classList.remove('playing');
     document.body.classList.remove('is-playing');
     statusMsg.textContent = "Duraklatıldı.";
