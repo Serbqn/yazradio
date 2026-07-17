@@ -125,14 +125,9 @@ const statusMsg = document.getElementById('statusMsg');
 const clock = document.getElementById('clock');
 const progressBar = document.getElementById('progressBar');
 
-// Doğrudan .mp3 uzantılı, tarayıcı uyumlu ve güvenli SomaFM Lofi stream adresi
-const streamUrl = "https://ice1.somafm.com/lofi-128-mp3";
-let audio = new Audio();
-
-// Tarayıcıya gelen akışın mpeg/mp3 olduğunu açıkça beyan ediyoruz
-audio.src = streamUrl;
-audio.type = "audio/mpeg";
-audio.preload = "none";
+// Tarayıcıların en sevdiği, kesintisiz kurumsal Shoutcast MP3 akışı (Radio Monaco)
+const streamUrl = "https://radiomonaco.ice.infomaniak.ch/radiomonaco-128.mp3";
+let audio = null;
 
 let isPlaying = false;
 let progressInterval;
@@ -142,8 +137,8 @@ function togglePlay() {
   if (!isPlaying) {
     statusMsg.textContent = "Canlı yayına bağlanılıyor…";
     
-    // Her başlatmada güncel canlı akışı yakalamak için yeniden yükle
-    audio.load();
+    // Her oynatmada yeni bir Audio instance oluşturarak cache ve desteklenen kaynak hatalarını tamamen baypas ediyoruz
+    audio = new Audio(streamUrl);
     
     audio.play()
       .then(() => {
@@ -163,9 +158,11 @@ function togglePlay() {
       });
   } else {
     isPlaying = false;
-    audio.pause();
-    // Buffer birikmesini önlemek için kaynağı sıfırlayıp tekrar bağlıyoruz
-    audio.src = streamUrl;
+    if (audio) {
+      audio.pause();
+      audio.src = ""; // Stream bağlantısını tamamen kopar
+      audio = null;   // Hafızadan temizle
+    }
     sunWrap.classList.remove('playing');
     document.body.classList.remove('is-playing');
     statusMsg.textContent = "Duraklatıldı.";
