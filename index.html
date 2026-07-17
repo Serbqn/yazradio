@@ -62,8 +62,11 @@
 
   /* ---------- Sun / dial ---------- */
   .sun-wrap{
-    position:fixed; left:50%; top:52%; transform:translate(-50%,-50%); z-index:1;
-    width:min(46vw, 420px); height:min(46vw,420px);
+    position:relative;
+    width:min(52vw, 300px);
+    aspect-ratio:1/1;
+    margin: 8px auto 20px;
+    pointer-events:auto; /* main is pointer-events:none — the sun opts back in */
   }
   .sun-glow{
     position:absolute; inset:-30%; border-radius:50%;
@@ -133,13 +136,15 @@
     color:var(--cream); opacity:0.85;
   }
   .live-dot{width:7px; height:7px; border-radius:50%; background:#e8735a; box-shadow:0 0 8px #e8735a;}
-  .sun-wrap.playing ~ .wrap .live-dot{animation:blink 2s ease-in-out infinite;}
+  body.is-playing .live-dot{animation:blink 2s ease-in-out infinite;}
   @keyframes blink{0%,100%{opacity:1;} 50%{opacity:0.25;}}
 
   main{
-    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; padding:40px 20px 0;
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    text-align:center; padding:clamp(28px,6vh,64px) 20px 0;
+    pointer-events:none; /* let clicks fall through empty text-box space to the sun button below */
   }
+  main .lcd{ pointer-events:auto; } /* ...but the LCD panel (volume slider) still needs clicks */
   .eyebrow{
     font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.22em;
     text-transform:uppercase; color:var(--gold); opacity:0.85; margin:0 0 14px;
@@ -210,7 +215,7 @@
   footer a{color:var(--gold); opacity:0.9; text-decoration:none;}
 
   @media (max-width:520px){
-    .sun-wrap{top:58%;}
+    .sun-wrap{width:min(60vw, 240px);}
   }
 </style>
 </head>
@@ -226,15 +231,6 @@
   </svg>
 </div>
 
-<div class="sun-wrap" id="sunWrap">
-  <div class="sun-glow"></div>
-  <div class="sun-disc"></div>
-  <button class="tune-btn" id="playBtn" aria-label="Yayını başlat / duraklat">
-    <span class="play-icon"></span>
-    <span class="pause-icon"><span></span><span></span></span>
-  </button>
-</div>
-
 <div class="wrap">
   <header>
     <a class="brand" href="https://yazdaglari.vercel.app">Yaz Dağları <span>Radyo</span></a>
@@ -245,6 +241,15 @@
     <p class="eyebrow">87.6 · Yaz Akşamı Frekansı</p>
     <h1>Gün batarken<br>başlıyor.</h1>
     <p class="tagline">Yaz Dağları'nın kokteyl saatine eşlik eden, seçilmiş parçalardan oluşan sürekli yayın.</p>
+
+    <div class="sun-wrap" id="sunWrap">
+      <div class="sun-glow"></div>
+      <div class="sun-disc"></div>
+      <button class="tune-btn" id="playBtn" aria-label="Yayını başlat / duraklat">
+        <span class="play-icon"></span>
+        <span class="pause-icon"><span></span><span></span></span>
+      </button>
+    </div>
 
     <div class="lcd">
       <div class="lcd-row">
@@ -332,6 +337,7 @@ function togglePlay() {
     player.play().then(() => {
       isPlaying = true;
       sunWrap.classList.add('playing');
+      document.body.classList.add('is-playing');
       statusMsg.textContent = "Yayında.";
     }).catch(() => {
       statusMsg.textContent = "Bağlantı kurulamadı — yayın adresini kontrol edin.";
@@ -339,6 +345,7 @@ function togglePlay() {
   } else {
     isPlaying = false;
     sunWrap.classList.remove('playing');
+    document.body.classList.remove('is-playing');
     player.pause();
     statusMsg.textContent = "Duraklatıldı.";
   }
@@ -355,6 +362,7 @@ player.addEventListener('playing', () => {
 player.addEventListener('error', () => {
   isPlaying = false;
   sunWrap.classList.remove('playing');
+  document.body.classList.remove('is-playing');
   statusMsg.textContent = "Bağlantı koptu — tekrar denemek için güneşe dokunun.";
 });
 
