@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Yaz Dağları Radyo</title>
+
+<!-- Tarayıcı sekmesi için inline yaz meyvesi (Favicon) -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍉</text></svg>">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -49,7 +53,6 @@
   main{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap: clamp(14px, 2.5vh, 28px); width: 100%; max-width: 600px; margin: 0 auto; }
   .sun-wrap, .lcd-container { pointer-events: auto; }
   
-  /* İngilizceye geçildiğinde büyük İ bug'ını çözen dil bazlı CSS kuralı */
   .eyebrow{ font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); opacity:0.85; margin:0; }
   html[lang="en"] .eyebrow { text-transform: none; }
   
@@ -123,7 +126,7 @@
         <span class="freq">87.6 MHz</span>
       </div>
       <p class="now-playing" id="trackTitle">Yaz Chillhop Seçkisi</p>
-      <p class="artist" id="trackArtist">Canlı Akış</p>
+      <p class="artist" id="trackArtist">Canlı Yayın Akışı</p>
       <div class="progress">
         <div class="progress-bar" id="progressBar"></div>
       </div>
@@ -142,7 +145,6 @@ const statusMsg = document.getElementById('statusMsg');
 const clock = document.getElementById('clock');
 const progressBar = document.getElementById('progressBar');
 
-// Dil Sözlüğü
 const i18n = {
   tr: {
     live: '<span class="live-dot"></span> CANLI YAYIN',
@@ -160,7 +162,7 @@ const i18n = {
   },
   en: {
     live: '<span class="live-dot"></span> LIVE STREAM',
-    eyebrow: '87.6 · FREQUENCY of SUMMER EVENINGS', // JS tarafında elle büyük harf girerek i/I dönüşümünü tamamen sağlama aldık
+    eyebrow: '87.6 · FREQUENCY of SUMMER EVENINGS',
     title: 'Starts as<br>the sun sets.',
     tagline: 'A continuous stream accompanying the cocktail hour of the Summer Nights.',
     trackTitle: 'Summer Chillhop Selection',
@@ -178,16 +180,12 @@ let currentLang = 'tr';
 
 function setLanguage(lang) {
   currentLang = lang;
-  
-  // HTML lang özniteliğini değiştirerek CSS kurallarını tetikliyoruz
   htmlRoot.setAttribute('lang', lang);
   
-  // Aktif buton stilini güncelle
   document.querySelectorAll('.lang-btn').forEach(btn => {
     btn.classList.toggle('active', btn.textContent.toLowerCase() === lang);
   });
   
-  // DOM elementlerini güncelle (Brand logosunu ellemedik, hep Türkçe kalıyor)
   document.getElementById('liveBadge').innerHTML = i18n[lang].live;
   document.getElementById('eyebrowText').textContent = i18n[lang].eyebrow;
   document.getElementById('mainTitle').innerHTML = i18n[lang].title;
@@ -196,7 +194,6 @@ function setLanguage(lang) {
   document.getElementById('trackArtist').textContent = i18n[lang].trackArtist;
   document.getElementById('footerText').textContent = i18n[lang].footer;
   
-  // Dinamik durum mesajını oynatıcının durumuna göre güncelle
   if (!audio) {
     statusMsg.textContent = i18n[lang].msgInitial;
   } else if (isPlaying) {
@@ -206,7 +203,6 @@ function setLanguage(lang) {
   }
 }
 
-// Güvenli kurumsal HTTPS akışı
 const streamUrl = "https://stream.nightride.fm/chillsynth.mp3";
 let audio = null;
 
