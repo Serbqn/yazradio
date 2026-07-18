@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" id="htmlRoot">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -35,6 +35,12 @@
   header{ display:flex; align-items:center; justify-content:space-between; flex-shrink: 0; }
   .brand{ font-family:'Fraunces',serif; font-weight:500; font-size:clamp(18px,2vw,22px); letter-spacing:0.02em; color:var(--gold-bright); text-decoration:none; }
   .brand span{color:var(--cream); opacity:0.7; font-weight:400; font-size:0.85em;}
+  
+  .header-right{ display:flex; align-items:center; gap:24px; }
+  .lang-switch{ display:flex; gap:8px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.05em; }
+  .lang-btn{ background:none; border:none; color:var(--cream); opacity:0.4; cursor:pointer; padding:2px 4px; transition:opacity 0.2s; font-family:inherit; }
+  .lang-btn.active{ opacity:1; color:var(--gold-bright); font-weight:500; }
+  
   .live-badge{ display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; color:var(--cream); opacity:0.85; }
   .live-dot{width:7px; height:7px; border-radius:50%; background:#e8735a; box-shadow:0 0 8px #e8735a;}
   body.is-playing .live-dot{animation:blink 2s ease-in-out infinite;}
@@ -42,7 +48,11 @@
 
   main{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap: clamp(14px, 2.5vh, 28px); width: 100%; max-width: 600px; margin: 0 auto; }
   .sun-wrap, .lcd-container { pointer-events: auto; }
+  
+  /* İngilizceye geçildiğinde büyük İ bug'ını çözen dil bazlı CSS kuralı */
   .eyebrow{ font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); opacity:0.85; margin:0; }
+  html[lang="en"] .eyebrow { text-transform: none; }
+  
   h1{ font-family:'Fraunces',serif; font-weight:600; font-size:clamp(32px,5.5vh,52px); line-height:1.05; margin:0; color:var(--cream); }
   .tagline{ font-size: clamp(13px, 1.8vh, 15px); color:var(--cream); opacity:0.65; max-width:420px; margin:0; }
 
@@ -84,13 +94,19 @@
 <div class="wrap">
   <header>
     <a class="brand" href="#">Yaz Dağları <span>Radyo</span></a>
-    <div class="live-badge"><span class="live-dot"></span> CANLI YAYIN</div>
+    <div class="header-right">
+      <div class="lang-switch">
+        <button class="lang-btn active" onclick="setLanguage('tr')">TR</button>
+        <button class="lang-btn" onclick="setLanguage('en')">EN</button>
+      </div>
+      <div class="live-badge" id="liveBadge"><span class="live-dot"></span> CANLI YAYIN</div>
+    </div>
   </header>
 
   <main>
-    <p class="eyebrow">87.6 · Yaz Akşamı Frekansı</p>
-    <h1>Gün batarken<br>başlıyor.</h1>
-    <p class="tagline">Yaz Dağları'nın kokteyl saatine eşlik eden, seçilmiş parçalardan oluşan sürekli yayın.</p>
+    <p class="eyebrow" id="eyebrowText">87.6 · Yaz Akşamı Frekansı</p>
+    <h1 id="mainTitle">Gün batarken<br>başlıyor.</h1>
+    <p class="tagline" id="taglineText">Yaz Dağları'nın kokteyl saatine eşlik eden sürekli yayın.</p>
 
     <div class="sun-wrap" id="sunWrap">
       <div class="sun-glow"></div>
@@ -115,17 +131,82 @@
     </div>
   </main>
 
-  <footer>Afiyet olsun · 2026 © Yaz Dağları</footer>
+  <footer id="footerText">Afiyet olsun · 2026 © Yaz Dağları</footer>
 </div>
 
 <script>
+const htmlRoot = document.getElementById('htmlRoot');
 const sunWrap = document.getElementById('sunWrap');
 const playBtn = document.getElementById('playBtn');
 const statusMsg = document.getElementById('statusMsg');
 const clock = document.getElementById('clock');
 const progressBar = document.getElementById('progressBar');
 
-// Tarayıcıların en sevdiği, kesintisiz kurumsal Shoutcast MP3 akışı (Radio Monaco)
+// Dil Sözlüğü
+const i18n = {
+  tr: {
+    live: '<span class="live-dot"></span> CANLI YAYIN',
+    eyebrow: '87.6 · YAZ AKŞAMI FREKANSI',
+    title: 'Gün batarken<br>başlıyor.',
+    tagline: 'Yaz Dağları\'nın kokteyl saatine eşlik eden sürekli yayın.',
+    trackTitle: 'Yaz Chillhop Seçkisi',
+    trackArtist: 'Canlı Akış',
+    footer: 'Afiyet olsun · 2026 © Yaz Dağları',
+    msgInitial: 'Başlatmak için güneşe dokun.',
+    msgConnecting: 'Canlı yayına bağlanılıyor…',
+    msgPlaying: 'Yayında.',
+    msgPaused: 'Duraklatıldı.',
+    msgError: 'Bağlantı kurulamadı.'
+  },
+  en: {
+    live: '<span class="live-dot"></span> LIVE STREAM',
+    eyebrow: '87.6 · SUMMER EVENING FREQUENCY', // JS tarafında elle büyük harf girerek i/I dönüşümünü tamamen sağlama aldık
+    title: 'Starts as<br>the sun sets.',
+    tagline: 'A continuous stream accompanying the cocktail hour of the Summer Nights.',
+    trackTitle: 'Summer Chillhop Selection',
+    trackArtist: 'Live Stream',
+    footer: 'Enjoy · 2026 © Summer Mountains',
+    msgInitial: 'Tap the sun to listen.',
+    msgConnecting: 'Connecting to live stream…',
+    msgPlaying: 'On Air.',
+    msgPaused: 'Paused.',
+    msgError: 'Connection failed.'
+  }
+};
+
+let currentLang = 'tr';
+
+function setLanguage(lang) {
+  currentLang = lang;
+  
+  // HTML lang özniteliğini değiştirerek CSS kurallarını tetikliyoruz
+  htmlRoot.setAttribute('lang', lang);
+  
+  // Aktif buton stilini güncelle
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase() === lang);
+  });
+  
+  // DOM elementlerini güncelle (Brand logosunu ellemedik, hep Türkçe kalıyor)
+  document.getElementById('liveBadge').innerHTML = i18n[lang].live;
+  document.getElementById('eyebrowText').textContent = i18n[lang].eyebrow;
+  document.getElementById('mainTitle').innerHTML = i18n[lang].title;
+  document.getElementById('taglineText').textContent = i18n[lang].tagline;
+  document.getElementById('trackTitle').textContent = i18n[lang].trackTitle;
+  document.getElementById('trackArtist').textContent = i18n[lang].trackArtist;
+  document.getElementById('footerText').textContent = i18n[lang].footer;
+  
+  // Dinamik durum mesajını oynatıcının durumuna göre güncelle
+  if (!audio) {
+    statusMsg.textContent = i18n[lang].msgInitial;
+  } else if (isPlaying) {
+    statusMsg.textContent = i18n[lang].msgPlaying;
+  } else {
+    statusMsg.textContent = i18n[lang].msgPaused;
+  }
+}
+
+// Güvenli kurumsal HTTPS akışı
 const streamUrl = "https://stream.nightride.fm/chillsynth.mp3";
 let audio = null;
 
@@ -135,9 +216,8 @@ let width = 0;
 
 function togglePlay() {
   if (!isPlaying) {
-    statusMsg.textContent = "Canlı yayına bağlanılıyor…";
+    statusMsg.textContent = i18n[currentLang].msgConnecting;
     
-    // Her oynatmada yeni bir Audio instance oluşturarak cache ve desteklenen kaynak hatalarını tamamen baypas ediyoruz
     audio = new Audio(streamUrl);
     
     audio.play()
@@ -145,7 +225,7 @@ function togglePlay() {
         isPlaying = true;
         sunWrap.classList.add('playing');
         document.body.classList.add('is-playing');
-        statusMsg.textContent = "Yayında.";
+        statusMsg.textContent = i18n[currentLang].msgPlaying;
         
         progressInterval = setInterval(() => {
           width = (width + 0.4) % 100;
@@ -154,18 +234,18 @@ function togglePlay() {
       })
       .catch(error => {
         console.error("Audio Playback Error:", error);
-        statusMsg.textContent = "Bağlantı kurulamadı. (" + error.message + ")";
+        statusMsg.textContent = `${i18n[currentLang].msgError} (${error.message})`;
       });
   } else {
     isPlaying = false;
     if (audio) {
       audio.pause();
-      audio.src = ""; // Stream bağlantısını tamamen kopar
-      audio = null;   // Hafızadan temizle
+      audio.src = "";
+      audio = null;
     }
     sunWrap.classList.remove('playing');
     document.body.classList.remove('is-playing');
-    statusMsg.textContent = "Duraklatıldı.";
+    statusMsg.textContent = i18n[currentLang].msgPaused;
     clearInterval(progressInterval);
   }
 }
