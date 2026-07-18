@@ -242,7 +242,21 @@ const statusMsg = document.getElementById('statusMsg');
 const clock = document.getElementById('clock');
 const progressBar = document.getElementById('progressBar');
 
-const streamUrl = "https://stream.nightride.fm/chillsynth.mp3";
+// İstasyonları bir objede tut
+const stations = {
+  lofi01: "https://stream.nightride.fm/chillsynth.mp3",
+  lofi02: "https://ice1.somafm.com/groovesalad-128-mp3",
+  lofi03: "http://usa9.fastcast4u.com/proxy/jamz?mp=/1",
+  lofi04: "https://icecast.walmradio.com:8443/classic",
+  lofi05: "https://icecast.ndr.de/ndr/ndrblue/live/mp3/128/stream.mp3",
+  lofi06: "https://icecast.radiofrance.fr/fip-midfi.mp3",
+  lofi07: "https://listen.moe/kpop/stream",
+  
+};
+
+// İstediğin an değiştirmek için:
+const streamUrl = stations.lofi06;
+
 let audio = null;
 let isPlaying = false;
 let progressInterval;
