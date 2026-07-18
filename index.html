@@ -315,7 +315,7 @@ const i18n = {
 
 function isNightTime() {
   const hr = new Date().getHours();
-  return false; hr < 6 || hr >= 19; 
+  return hr < 6 || hr >= 19; 
 }
 
 function updateTexts() {
