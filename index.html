@@ -160,13 +160,30 @@
   .progress{ margin-top:12px; height:3px; border-radius:2px; background:var(--ui-line); overflow:hidden; }
   .progress-bar{height:100%; width:0%; background:var(--gold); transition: background 0.5s; }
   
-  .controls{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; }
-  .vol-row{display:flex; align-items:center; gap:10px; flex:1;}
-  .vol-row label{font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--cream); opacity:0.6;}
-  
-  input[type="range"]{ -webkit-appearance:none; appearance:none; flex:1; height:3px; border-radius:2px; background:var(--ui-line); outline:none; }
-  input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:var(--gold-bright); cursor:pointer; border:none; }
-  input[type="range"]::-moz-range-thumb{ width:13px; height:13px; border-radius:50%; background:var(--gold-bright); cursor:pointer; border:none; }
+  /* ---------- Mute/Unmute Kontrolleri ---------- */
+  .controls{ display:flex; align-items:center; justify-content:center; margin-top:16px; }
+  .mute-btn {
+    background: none;
+    border: 1px solid var(--ui-line);
+    border-radius: 20px;
+    color: var(--cream);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 6px 16px;
+    cursor: pointer;
+    transition: background 0.3s, border-color 0.3s, color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .mute-btn:hover {
+    background: rgba(244, 234, 217, 0.08);
+    border-color: var(--gold);
+  }
+  html.day-mode .mute-btn:hover {
+    background: rgba(3, 4, 94, 0.08);
+  }
   
   .status-msg{ font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--cream); opacity:0.5; margin:10px auto 0; min-height:14px; }
   
@@ -234,10 +251,7 @@
         <div class="progress-bar" id="progressBar"></div>
       </div>
       <div class="controls">
-        <div class="vol-row">
-          <label for="vol">SES</label>
-          <input type="range" id="vol" min="0" max="100" value="70">
-        </div>
+        <button class="mute-btn" id="muteBtn" aria-label="Sesi Kapat">🔊 SES: AÇIK</button>
       </div>
       <p class="status-msg" id="statusMsg">Başlatmak için güneşe dokun.</p>
     </div>
@@ -250,16 +264,17 @@
 const htmlRoot = document.getElementById('htmlRoot');
 const sunWrap = document.getElementById('sunWrap');
 const playBtn = document.getElementById('playBtn');
+const muteBtn = document.getElementById('muteBtn');
 const trackTitle = document.getElementById('trackTitle');
 const trackArtist = document.getElementById('trackArtist');
 const statusMsg = document.getElementById('statusMsg');
 const clock = document.getElementById('clock');
-const vol = document.getElementById('vol');
 const progressBar = document.getElementById('progressBar');
 
 const streamUrl = "https://stream.nightride.fm/chillsynth.mp3";
 let audio = null;
 let isPlaying = false;
+let isMuted = false;
 let progressInterval;
 let width = 0;
 let currentLang = 'tr';
@@ -275,6 +290,10 @@ const i18n = {
     msgError: 'Bağlantı kurulamadı.',
     trackTitle: 'Yaz Chillhop Seçkisi',
     trackArtist: 'Canlı Yayın Akışı',
+    volOn: '🔊 SES: AÇIK',
+    volMuted: '🔇 SES: SESSİZ',
+    ariaMute: 'Sesi Kapat',
+    ariaUnmute: 'Sesi Aç',
     // Gece Metinleri
     night: {
       eyebrow: '87.6 · YAZ AKŞAMI FREKANSI',
@@ -298,6 +317,10 @@ const i18n = {
     msgError: 'Connection failed.',
     trackTitle: 'Summer Chillhop Selection',
     trackArtist: 'Live Stream',
+    volOn: '🔊 AUDIO: ON',
+    volMuted: '🔇 AUDIO: MUTED',
+    ariaMute: 'Mute Audio',
+    ariaUnmute: 'Unmute Audio',
     // Gece Metinleri
     night: {
       eyebrow: '87.6 · FREQUENCY of SUMMER EVENINGS',
@@ -326,6 +349,10 @@ function updateTexts() {
   document.getElementById('footerText').textContent = langData.footer;
   trackTitle.textContent = langData.trackTitle;
   trackArtist.textContent = langData.trackArtist;
+  
+  // Mute butonu metinleri
+  muteBtn.textContent = isMuted ? langData.volMuted : langData.volOn;
+  muteBtn.setAttribute('aria-label', isMuted ? langData.ariaUnmute : langData.ariaMute);
   
   // Temaya ve dile göre değişen ana metinler
   document.getElementById('eyebrowText').textContent = langData[mode].eyebrow;
@@ -358,7 +385,7 @@ function togglePlay() {
     statusMsg.textContent = i18n[currentLang].msgConnecting;
     
     audio = new Audio(streamUrl);
-    audio.volume = vol.value / 100;
+    audio.volume = isMuted ? 0 : 0.7; // Varsayılan açılış sesi %70
     
     audio.play()
       .then(() => {
@@ -391,13 +418,16 @@ function togglePlay() {
   }
 }
 
-playBtn.addEventListener('click', togglePlay);
-
-vol.addEventListener('input', () => {
+function toggleMute() {
+  isMuted = !isMuted;
   if (audio) {
-    audio.volume = vol.value / 100;
+    audio.volume = isMuted ? 0 : 0.7;
   }
-});
+  updateTexts();
+}
+
+playBtn.addEventListener('click', togglePlay);
+muteBtn.addEventListener('click', toggleMute);
 
 function checkTheme() {
   const night = isNightTime();
@@ -405,10 +435,10 @@ function checkTheme() {
   
   if (!night && !hasDayClass) {
     htmlRoot.classList.add('day-mode');
-    updateTexts(); // Tema değiştiğinde metinleri güncelle
+    updateTexts();
   } else if (night && hasDayClass) {
     htmlRoot.classList.remove('day-mode');
-    updateTexts(); // Tema değiştiğinde metinleri güncelle
+    updateTexts();
   }
 }
 
