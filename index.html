@@ -266,7 +266,6 @@ const stations = {
   lofi05: "https://icecast.ndr.de/ndr/ndrblue/live/mp3/128/stream.mp3",
   lofi06: "https://icecast.radiofrance.fr/fip-midfi.mp3",
   lofi07: "https://listen.moe/kpop/stream",
-  
 };
 
 // İstediğin an değiştirmek için:
@@ -274,6 +273,7 @@ const streamUrl = stations.lofi06;
 
 let audio = null;
 let isPlaying = false;
+let isConnecting = false; // Çift tıklama / zombi yayın kilidi
 let progressInterval;
 let width = 0;
 let currentLang = 'tr';
@@ -362,7 +362,11 @@ function setLanguage(lang) {
 }
 
 function togglePlay() {
+  // Asenkron yükleme sırasında peş peşe gelen tıklamaları bloke et
+  if (isConnecting) return;
+
   if (!isPlaying) {
+    isConnecting = true;
     statusMsg.textContent = i18n[currentLang].msgConnecting;
     
     audio = new Audio(streamUrl);
@@ -370,6 +374,7 @@ function togglePlay() {
     audio.play()
       .then(() => {
         isPlaying = true;
+        isConnecting = false;
         sunWrap.classList.add('playing');
         document.body.classList.add('is-playing');
         statusMsg.textContent = i18n[currentLang].msgPlaying;
@@ -381,15 +386,22 @@ function togglePlay() {
       })
       .catch(error => {
         console.error("Audio Playback Error:", error);
+        isPlaying = false;
+        isConnecting = false;
         statusMsg.textContent = i18n[currentLang].msgError;
       });
   } else {
     isPlaying = false;
+    isConnecting = false;
+    
     if (audio) {
       audio.pause();
-      audio.src = "";
+      // iOS Safari'nin yayını ve network buffer'ını kesin olarak bırakması için:
+      audio.removeAttribute('src'); 
+      audio.load(); 
       audio = null;
     }
+    
     sunWrap.classList.remove('playing');
     document.body.classList.remove('is-playing');
     statusMsg.textContent = i18n[currentLang].msgPaused;
